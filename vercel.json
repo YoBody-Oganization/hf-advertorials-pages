@@ -4,13 +4,6 @@
   "outputDirectory": ".",
   "framework": null,
   "trailingSlash": false,
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "https://hormonefocus.jjsmithonline.com/",
-      "permanent": true
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",

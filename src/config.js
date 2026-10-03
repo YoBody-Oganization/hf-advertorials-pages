@@ -4,6 +4,19 @@ export { SALES_PAGE, SALES_HOST, PRESELL_PARAM, ATTRIBUTION_KEYS } from './clien
 /** Canonical origin. No trailing slash. */
 export const SITE_ORIGIN = 'https://learn.hormonefocus.jjsmithonline.com'
 
+/**
+ * What the bare domain serves.
+ *
+ * A slug renders that presell at `/` as well as at its own route — the same
+ * shell, so it tracks and attributes identically, and its canonical still
+ * points at the slug URL so search engines index one of them, not two.
+ *
+ * Set to `null` to redirect `/` to the sales page instead. If you change this,
+ * also check the `/` redirect in vercel.json and public/_redirects: a host
+ * redirect fires before any static file and would hide the page.
+ */
+export const ROOT_ROUTE = 'night-sweats-women-over-40-solutions'
+
 export const GTM_ID = 'GTM-WT4MWLTH'
 export const META_PIXEL_ID = '1614860232058835'
 

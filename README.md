@@ -31,7 +31,7 @@ entry in that array.
 ```bash
 npm install     # one dev dependency: jsdom, for the test suite
 npm run build   # regenerates the six routes at the repo root
-npm test        # 98 tests; the live ones skip when offline
+npm test        # 99 tests; the live ones skip when offline
 npm run dev     # build, then serve on http://localhost:4321
 ```
 
@@ -222,10 +222,15 @@ both configured: build `npm run build`, publish `.`.
 Anything else — GitHub Pages, S3, a plain web server — can serve the checked
 -out repo as-is, because the pages are committed.
 
-Point `learn.hormonefocus.jjsmithonline.com` at the deployment. `/` redirects
-to the sales page — this subdomain only serves presells. Vercel and Netlify do
-it as a 301; the committed `index.html` does it with a meta refresh so a host
-that reads neither config still behaves the same.
+Point `learn.hormonefocus.jjsmithonline.com` at the deployment.
+
+`/` serves the first presell — `ROOT_ROUTE` in [`src/config.js`](src/config.js).
+It is the same shell as the slug route, so it tracks and attributes
+identically, and its canonical points at the slug URL so the two paths are not
+indexed as duplicates. Set `ROOT_ROUTE` to `null` to redirect `/` to the sales
+page instead, and restore the `/` rule in `vercel.json` and
+`public/_redirects` if you do — **a host redirect fires before any static
+file**, so leaving one in place would hide whatever the root serves.
 
 Shells revalidate on every load (they are tiny and carry the tracking IDs);
 `/assets/*` is content-hashed and served immutable. **The Landra article is

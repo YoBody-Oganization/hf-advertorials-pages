@@ -21,7 +21,7 @@ import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { SITE_ORIGIN, SALES_PAGE } from './src/config.js'
+import { ROOT_ROUTE, SALES_PAGE, SITE_ORIGIN } from './src/config.js'
 import { pages } from './src/pages.js'
 import { renderPage } from './src/template.js'
 
@@ -148,11 +148,7 @@ const notFound = `<!doctype html>
 </html>
 `
 
-/**
- * The bare root. Vercel and Netlify redirect it before this file is ever
- * reached; this is what makes a plain static host behave the same way instead
- * of showing a directory listing or a 404.
- */
+/** The bare root, when ROOT_ROUTE is null: send it to the offer. */
 const rootRedirect = `<!doctype html>
 <html lang="en">
   <head>
@@ -179,7 +175,15 @@ async function main() {
     await writeFile(join(root, page.slug, 'index.html'), renderPage(page, assets))
   }
 
-  await writeFile(join(root, 'index.html'), rootRedirect)
+  // The bare domain. Serving a real presell here means a stray visit lands on
+  // an article rather than on a bounce, and it is the same shell as the slug
+  // route — same tracking, same attribution, canonical pointed at the slug.
+  const rootPage = ROOT_ROUTE ? pages.find((page) => page.slug === ROOT_ROUTE) : null
+  if (ROOT_ROUTE && !rootPage) throw new Error(`ROOT_ROUTE is not a configured slug: ${ROOT_ROUTE}`)
+  await writeFile(
+    join(root, 'index.html'),
+    rootPage ? renderPage(rootPage, assets) : rootRedirect,
+  )
   await writeFile(join(root, '404.html'), notFound)
   await writeFile(join(root, 'sitemap.xml'), renderSitemap(pages))
   await writeFile(
@@ -208,6 +212,7 @@ async function main() {
   const retired = removed.filter((entry) => !outputs.includes(entry))
   if (retired.length) console.log(`Retired: ${retired.join(', ')}`)
   console.log(`Built ${pages.length} routes at the repository root`)
+  console.log(`  /  →  ${rootPage ? rootPage.slug : SALES_PAGE}`)
   for (const page of pages) console.log(`  /${page.slug}  →  ${page.embedId}`)
   console.log(`  assets: ${assets.scriptPath}, ${assets.attributionPath}`)
 }

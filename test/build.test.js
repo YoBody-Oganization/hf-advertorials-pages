@@ -3,7 +3,13 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { before, describe, it } from 'node:test'
 
-import { GTM_ID, LANDRA_RUNTIME, META_PIXEL_ID, SALES_PAGE, SITE_ORIGIN } from '../src/config.js'
+import {
+  GTM_ID,
+  LANDRA_RUNTIME,
+  META_PIXEL_ID,
+  ROOT_ROUTE,
+  SITE_ORIGIN,
+} from '../src/config.js'
 import { pages } from '../src/pages.js'
 
 const root = new URL('..', import.meta.url).pathname
@@ -33,7 +39,7 @@ describe('build output', () => {
 
   it('ships the host config alongside the pages', () => {
     assert.ok(read('_headers').includes('immutable'))
-    assert.ok(read('_redirects').includes('https://hormonefocus.jjsmithonline.com/'))
+    assert.ok(read('_headers').includes('/assets/*'))
   })
 
   it('serves content-hashed client modules that actually exist', () => {
@@ -198,15 +204,33 @@ describe('output at the repository root', () => {
     assert.ok(existsSync(new URL('../assets', import.meta.url)))
   })
 
-  it('serves the bare root to the sales page on any host', () => {
-    const html = read('index.html')
-    assert.ok(html.includes('content="noindex"'))
-    assert.ok(html.includes(`url=${SALES_PAGE}`), 'meta refresh')
-    assert.ok(html.includes(`href="${SALES_PAGE}"`), 'a link, for anything that ignores the refresh')
-    // The root is not a presell: no tracking, no embed.
-    assert.equal(count(html, GTM_ID), 0)
-    assert.equal(count(html, META_PIXEL_ID), 0)
-    assert.equal(count(html, 'data-landra-embed'), 0)
+  it('serves a real presell at the bare root', () => {
+    const root = read('index.html')
+    const page = pages.find((entry) => entry.slug === ROOT_ROUTE)
+    assert.ok(page, 'ROOT_ROUTE names a configured page')
+
+    // Byte-identical to the slug route, so it tracks and attributes the same.
+    assert.equal(root, read(`${page.slug}/index.html`))
+    assert.equal(count(root, `data-landra-embed="${page.embedId}"`), 1)
+    assert.equal(count(root, `data-hf-presell="${page.slug}"`), 1)
+    assert.equal(count(root, GTM_ID), 2)
+    assert.equal(count(root, META_PIXEL_ID), 2)
+
+    // Canonical stays on the slug URL, so the two paths are not indexed twice.
+    assert.equal(
+      count(root, `<link rel="canonical" href="${SITE_ORIGIN}/${page.slug}" />`),
+      1,
+    )
+  })
+
+  it('has no host redirect that would hide the root page', () => {
+    // A "/" redirect fires before any static file is served. With a presell at
+    // the root, one here would mean nobody ever sees it.
+    assert.equal(JSON.parse(read('vercel.json')).redirects, undefined)
+    const redirects = read('_redirects')
+      .split('\n')
+      .filter((line) => line.trim() && !line.trim().startsWith('#'))
+    assert.deepEqual(redirects, [])
   })
 
   it('records everything it wrote in the manifest', () => {
