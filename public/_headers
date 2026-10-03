@@ -1,0 +1,12 @@
+# Netlify / Cloudflare Pages. Vercel reads vercel.json instead.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  # The shells are tiny and carry the tracking IDs and canonical tags, so they
+  # revalidate on every load. The article itself is never cached here — the
+  # browser fetches it from Landra at runtime.
+  Cache-Control: public, max-age=0, must-revalidate
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
