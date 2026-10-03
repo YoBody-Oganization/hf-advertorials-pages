@@ -31,7 +31,7 @@ entry in that array.
 ```bash
 npm install     # one dev dependency: jsdom, for the test suite
 npm run build   # regenerates the six routes at the repo root
-npm test        # 99 tests; the live ones skip when offline
+npm test        # 132 tests; the live ones skip when offline
 npm run dev     # build, then serve on http://localhost:4321
 ```
 
@@ -269,10 +269,16 @@ test/presell.dom.test.js    the module in jsdom: dynamic content, races,
 test/build.test.js          the generated HTML: embed ids, one runtime, one GTM,
                             one Pixel, no Purchase, metadata, root output and
                             the cleanup's refusal to delete source
+test/tracking.test.js       executes each built page and records what fbq and
+                            dataLayer actually received
 test/live-embed.test.js     the module against the six real live embeds
 test/e2e.test.js            the built page, hydrated by Landra's real loader
                             pulling the real article, then clicked
 ```
+
+The suite runs with `--test-concurrency=1`. Several files shell out to
+`node build.mjs`, which rewrites the routes in place at the repository root;
+run the files in parallel and they delete each other's output mid-read.
 
 `test/fixtures/landra-dom.js` records the *link structure* of the six embeds —
 classes and hrefs, no article copy — so the suite still runs offline. The live

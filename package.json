@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "test": "node --test 'test/*.test.js'",
+    "test": "node --test --test-concurrency=1 'test/*.test.js'",
     "dev": "node build.mjs && node serve.mjs"
   },
   "devDependencies": {
