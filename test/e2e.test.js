@@ -37,7 +37,7 @@ try {
 }
 
 execFileSync('node', ['build.mjs'], { cwd: root, stdio: 'pipe' })
-const builtHtml = readFileSync(`${root}dist/${PAGE.slug}/index.html`, 'utf8')
+const builtHtml = readFileSync(`${root}${PAGE.slug}/index.html`, 'utf8')
 
 async function waitForReady(host, attempts = 60) {
   for (let i = 0; i < attempts; i += 1) {

@@ -1,6 +1,9 @@
 node_modules/
-dist/
 .DS_Store
 .vercel
 .netlify
 *.log
+
+# Build output is intentionally committed — see README, "Why the built pages
+# are in the repo". `.build-manifest.json` records what the last build wrote
+# so the next one can retire it.

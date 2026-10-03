@@ -30,9 +30,9 @@ entry in that array.
 
 ```bash
 npm install     # one dev dependency: jsdom, for the test suite
-npm run build   # writes dist/
-npm test        # 93 tests; the live ones skip when offline
-npm run dev     # build, then serve dist/ on http://localhost:4321
+npm run build   # regenerates the six routes at the repo root
+npm test        # 98 tests; the live ones skip when offline
+npm run dev     # build, then serve on http://localhost:4321
 ```
 
 Node 22 (`.nvmrc`). **Zero runtime dependencies** — nothing is shipped to the
@@ -58,11 +58,31 @@ template. Clean routing comes from the output shape (`dist/<slug>/index.html`).
 ## How a page works
 
 ```
-dist/<slug>/index.html      the shell: metadata, GTM, Pixel, one embed host
+<slug>/index.html           the shell: metadata, GTM, Pixel, one embed host
   └─ Landra current.css     the published stylesheet for this page
   └─ Landra live runtime    fetches current.html, assigns innerHTML
   └─ /assets/presell.js     keeps the offer CTAs attributed
 ```
+
+### Why the built pages are in the repo
+
+`npm run build` writes the routes **at the repository root**, and that output
+is committed. It means any static host serves `/<slug>` with no configuration
+— one that runs the build and one that only serves the checked-out files
+behave identically. Build output beside source is the price.
+
+Two consequences worth knowing:
+
+- **Rebuild and commit** after changing the template, the tracking IDs, the
+  route list or the CTA logic. Jane's content edits still need nothing.
+- `.build-manifest.json` records what the last build wrote, so renaming a slug
+  retires the old route instead of leaving a stale page live on a domain
+  taking paid traffic. The cleanup refuses to touch anything in the source
+  tree, and `test/build.test.js` proves it against a hostile manifest.
+
+Serving the root also serves `src/`, `test/` and `package.json` — true of any
+repo-served static site. There is nothing secret in them; the GTM and Pixel
+IDs are public by nature and already in every page's HTML.
 
 The shell is under 7 KB and renders nothing of its own — no header, no footer,
 no fonts. Landra's stylesheet is scoped to `.landra-page-outer` and opens with
@@ -197,10 +217,15 @@ as a CTA click.
 
 Vercel ([`vercel.json`](vercel.json)) and Netlify / Cloudflare Pages
 ([`netlify.toml`](netlify.toml), `public/_headers`, `public/_redirects`) are
-both configured: build `npm run build`, publish `dist`.
+both configured: build `npm run build`, publish `.`.
+
+Anything else — GitHub Pages, S3, a plain web server — can serve the checked
+-out repo as-is, because the pages are committed.
 
 Point `learn.hormonefocus.jjsmithonline.com` at the deployment. `/` redirects
-to the sales page — this subdomain only serves presells.
+to the sales page — this subdomain only serves presells. Vercel and Netlify do
+it as a 301; the committed `index.html` does it with a meta refresh so a host
+that reads neither config still behaves the same.
 
 Shells revalidate on every load (they are tiny and carry the tracking IDs);
 `/assets/*` is content-hashed and served immutable. **The Landra article is
@@ -237,7 +262,8 @@ test/attribution.test.js    the merge rules, pure
 test/presell.dom.test.js    the module in jsdom: dynamic content, races,
                             clones, storage, Landra's forwarder, click semantics
 test/build.test.js          the generated HTML: embed ids, one runtime, one GTM,
-                            one Pixel, no Purchase, metadata
+                            one Pixel, no Purchase, metadata, root output and
+                            the cleanup's refusal to delete source
 test/live-embed.test.js     the module against the six real live embeds
 test/e2e.test.js            the built page, hydrated by Landra's real loader
                             pulling the real article, then clicked

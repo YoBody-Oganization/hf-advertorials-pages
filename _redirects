@@ -1,0 +1,3 @@
+# This subdomain exists only to serve the six presells. A bare visit to the
+# root belongs on the offer, not on a 404. Query strings are preserved.
+/   https://hormonefocus.jjsmithonline.com/   301

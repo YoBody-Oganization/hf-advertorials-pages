@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { before, describe, it } from 'node:test'
 
-import { GTM_ID, LANDRA_RUNTIME, META_PIXEL_ID, SITE_ORIGIN } from '../src/config.js'
+import { GTM_ID, LANDRA_RUNTIME, META_PIXEL_ID, SALES_PAGE, SITE_ORIGIN } from '../src/config.js'
 import { pages } from '../src/pages.js'
 
 const root = new URL('..', import.meta.url).pathname
-const read = (relative) => readFileSync(new URL(`../dist/${relative}`, import.meta.url), 'utf8')
+const read = (relative) => readFileSync(new URL(`../${relative}`, import.meta.url), 'utf8')
 const count = (haystack, needle) => haystack.split(needle).length - 1
 
 const documents = new Map()
@@ -185,5 +185,71 @@ describe('build guards', () => {
       description: '',
     })
     assert.equal(count(html, '<meta name="description"'), 0)
+  })
+})
+
+describe('output at the repository root', () => {
+  it('puts each route where a plain static host will find it', () => {
+    // Not dist/<slug> — the built pages are committed, and a host that only
+    // serves the checked-out files must resolve /<slug> on its own.
+    for (const page of pages) {
+      assert.ok(existsSync(new URL(`../${page.slug}/index.html`, import.meta.url)), page.slug)
+    }
+    assert.ok(existsSync(new URL('../assets', import.meta.url)))
+  })
+
+  it('serves the bare root to the sales page on any host', () => {
+    const html = read('index.html')
+    assert.ok(html.includes('content="noindex"'))
+    assert.ok(html.includes(`url=${SALES_PAGE}`), 'meta refresh')
+    assert.ok(html.includes(`href="${SALES_PAGE}"`), 'a link, for anything that ignores the refresh')
+    // The root is not a presell: no tracking, no embed.
+    assert.equal(count(html, GTM_ID), 0)
+    assert.equal(count(html, META_PIXEL_ID), 0)
+    assert.equal(count(html, 'data-landra-embed'), 0)
+  })
+
+  it('records everything it wrote in the manifest', () => {
+    const manifest = JSON.parse(read('.build-manifest.json'))
+    for (const page of pages) assert.ok(manifest.outputs.includes(page.slug), page.slug)
+    for (const entry of ['assets', 'index.html', '404.html', 'sitemap.xml', 'robots.txt']) {
+      assert.ok(manifest.outputs.includes(entry), entry)
+    }
+  })
+
+  it('retires a route the config no longer lists, and never touches the source', () => {
+    const manifestPath = new URL('../.build-manifest.json', import.meta.url)
+    const real = JSON.parse(readFileSync(manifestPath, 'utf8'))
+
+    // A route from an earlier build, plus entries a corrupted or hand-edited
+    // manifest might name. The second group must be refused outright: source
+    // and output share a directory here, so this is the one place a bug could
+    // delete the repository.
+    const stale = 'tmp-retired-route'
+    mkdirSync(new URL(`../${stale}/`, import.meta.url), { recursive: true })
+    writeFileSync(new URL(`../${stale}/index.html`, import.meta.url), 'old')
+
+    const hostile = ['src', 'test', 'build.mjs', 'package.json', '..', '.git', 'node_modules']
+    writeFileSync(
+      manifestPath,
+      JSON.stringify({ outputs: [...real.outputs, stale, ...hostile] }, null, 2),
+    )
+
+    execFileSync('node', ['build.mjs'], { cwd: root, stdio: 'pipe' })
+
+    assert.equal(existsSync(new URL(`../${stale}`, import.meta.url)), false, 'stale route retired')
+    for (const entry of hostile) {
+      if (entry === '..') continue
+      assert.ok(existsSync(new URL(`../${entry}`, import.meta.url)), `${entry} survived`)
+    }
+    // And the live routes are still there.
+    for (const page of pages) {
+      assert.ok(existsSync(new URL(`../${page.slug}/index.html`, import.meta.url)), page.slug)
+    }
+  })
+
+  it('refuses a slug that would collide with the source tree', async () => {
+    const { pages: real } = await import('../src/pages.js')
+    assert.ok(real.every((page) => !['src', 'test', 'assets', 'public'].includes(page.slug)))
   })
 })
